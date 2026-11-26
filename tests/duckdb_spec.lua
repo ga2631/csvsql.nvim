@@ -99,6 +99,7 @@ T.test("plugin commands and health module load cleanly", function()
   T.assert_true(cmds.CsvSqlWatch ~= nil, ":CsvSqlWatch should be registered")
   T.assert_true(cmds.CsvSqlSummarize ~= nil, ":CsvSqlSummarize should be registered")
   T.assert_true(cmds.CsvSqlInstall ~= nil, ":CsvSqlInstall should be registered")
+  T.assert_true(cmds.CsvSqlClose ~= nil, ":CsvSqlClose should be registered")
 
   local health = require("csvsql.health")
   T.assert_true(type(health.check) == "function")
@@ -155,6 +156,27 @@ T.test("auto-enable detects .csv files even when filetype is overridden to bigfi
 
   vim.api.nvim_buf_delete(buf, { force = true })
   vim.api.nvim_buf_delete(non_csv, { force = true })
+end)
+
+T.test("session:close wipes viewer buffer without closing the window", function()
+  local view = require("csvsql.view")
+  local tmp = vim.fn.tempname() .. ".csv"
+  vim.fn.writefile({ "id,name", "1,alice" }, tmp)
+
+  local raw_buf = vim.fn.bufadd(tmp)
+  vim.fn.bufload(raw_buf)
+  local win_before = vim.api.nvim_get_current_win()
+  local session = view.open(tmp, raw_buf)
+  local view_buf = session.view_buf
+
+  T.assert_eq(vim.api.nvim_win_get_buf(win_before), view_buf)
+  session:close()
+
+  T.assert_true(vim.api.nvim_win_is_valid(win_before), "window should remain open")
+  T.assert_eq(vim.api.nvim_buf_is_valid(view_buf), false, "viewer buffer should be wiped")
+  T.assert_true(vim.api.nvim_win_get_buf(win_before) ~= view_buf, "window should show fallback buffer")
+
+  vim.fn.delete(tmp)
 end)
 
 T.finish()

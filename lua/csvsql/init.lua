@@ -208,6 +208,13 @@ function M.install(opts)
   return installer.install(opts)
 end
 
+function M.close()
+  local session = view.get_session()
+  if session then
+    session:close()
+  end
+end
+
 function M.toggle()
   local cur = vim.api.nvim_get_current_buf()
   local session = view.sessions_by_buf[cur]

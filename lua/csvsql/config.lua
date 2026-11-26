@@ -6,6 +6,7 @@
 ---@field toggle_raw string|false Toggle between table view and raw CSV
 ---@field toggle_watch string|false Toggle live file watching
 ---@field summarize string|false Run SUMMARIZE data for quick column stats
+---@field close string|false Close only the csvsql viewer buffer (without quitting Neovim)
 
 ---@class CsvSqlConfig
 ---@field auto_enable boolean Automatically render CSV/TSV files as read-only tables on open
@@ -18,6 +19,7 @@
 ---@field live_watch boolean Enable real-time file watching by default
 ---@field editor_height integer Height (lines) of the SQL scratch split
 ---@field show_header boolean Show status/query header banner at the top of the table buffer
+---@field safe_quit boolean Make :q in the table view close only the csvsql buffer instead of quitting Neovim
 ---@field keymaps CsvSqlKeymaps Buffer-local keymaps for the table view
 
 local M = {}
@@ -34,6 +36,7 @@ M.defaults = {
   live_watch = true,
   editor_height = 8,
   show_header = true,
+  safe_quit = true,
   keymaps = {
     editor = "gs",
     prompt = "gq",
@@ -42,6 +45,7 @@ M.defaults = {
     toggle_raw = "gr",
     toggle_watch = "gw",
     summarize = "gS",
+    close = "q",
   },
 }
 

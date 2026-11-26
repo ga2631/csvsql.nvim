@@ -61,6 +61,11 @@ Run `:checkhealth csvsql` to verify your installation.
                         for your OS/architecture into Neovim's data directory.
                         Use `!` to force reinstall or upgrade.
 
+                                                                *:CsvSqlClose*
+:CsvSqlClose            Close only the csvsql viewer buffer without quitting
+                        Neovim. Also bound to `q` and `:q` (when `safe_quit`
+                        is enabled).
+
 ==============================================================================
 4. KEYMAPS                                                    *csvsql-keymaps*
 

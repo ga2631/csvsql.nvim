@@ -115,6 +115,7 @@ Verify your setup anytime inside Neovim with:
 | `:CsvSqlWatch` | Pause / resume real-time file watching |
 | `:CsvSqlSummarize` | Run `SUMMARIZE data` for instant column stats |
 | `:CsvSqlInstall[!]` | Auto-install DuckDB CLI into Neovim's data directory (`!` forces reinstall/upgrade) |
+| `:CsvSqlClose` | Close only the `csvsql` viewer buffer without quitting Neovim |
 
 ### Default Keymaps (Table View Buffer)
 
@@ -127,6 +128,7 @@ Verify your setup anytime inside Neovim with:
 | `r` | Manual refresh |
 | `gr` | Toggle raw CSV buffer |
 | `gw` | Toggle live file watching (`LIVE` / `PAUSED`) |
+| `q` | Close only the `csvsql` viewer buffer (`:q` also safely closes just the buffer) |
 
 In the **SQL scratch split**: `<CR>` (normal mode), `<C-s>` (normal/insert), or `:w` runs the query; `q` closes the split.
 
@@ -148,6 +150,7 @@ require("csvsql").setup({
   live_watch = true,           -- Start live file watching automatically
   editor_height = 8,           -- Height (lines) of the SQL scratch split
   show_header = true,          -- Show status/query header banner
+  safe_quit = true,            -- Make :q close only the viewer buffer (not Neovim)
   keymaps = {
     editor = "gs",
     prompt = "gq",
@@ -156,6 +159,7 @@ require("csvsql").setup({
     toggle_raw = "gr",
     toggle_watch = "gw",
     summarize = "gS",
+    close = "q",
   },
 })
 ```

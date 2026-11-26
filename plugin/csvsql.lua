@@ -68,3 +68,9 @@ end, {
   bang = true,
   desc = "Install (or reinstall with !) the DuckDB CLI binary for csvsql.nvim",
 })
+
+vim.api.nvim_create_user_command("CsvSqlClose", function()
+  csvsql().close()
+end, {
+  desc = "Close only the csvsql viewer buffer without quitting Neovim",
+})

@@ -157,6 +157,19 @@ local function setup_keymaps(session)
   map(km.summarize, function()
     session:summarize()
   end, "csvsql: summarize columns")
+
+  map(km.close, function()
+    session:close()
+  end, "csvsql: close viewer buffer")
+
+  if config.options.safe_quit then
+    vim.keymap.set("ca", "q", function()
+      if vim.fn.getcmdtype() == ":" and vim.fn.getcmdline() == "q" then
+        return "CsvSqlClose"
+      end
+      return "q"
+    end, { buffer = buf, expr = true, desc = "csvsql: close viewer buffer on :q" })
+  end
 end
 
 ---@param filepath string
@@ -290,6 +303,69 @@ function M.open(filepath, raw_buf)
     end
     vim.b[target].csvsql_raw_mode = true
     vim.api.nvim_win_set_buf(win, target)
+  end
+
+  function session:close()
+    local view_buf = self.view_buf
+    local raw_buf = self.raw_buf
+    local wins = vim.api.nvim_buf_is_valid(view_buf) and vim.fn.win_findbuf(view_buf) or {}
+
+    -- Find an existing listed buffer to switch to (excluding csvsql & unmodified raw CSV buffer)
+    local fallback = nil
+    local alt = vim.fn.bufnr("#")
+    if
+      alt > 0
+      and alt ~= view_buf
+      and alt ~= raw_buf
+      and vim.api.nvim_buf_is_valid(alt)
+      and vim.bo[alt].buflisted
+      and vim.bo[alt].buftype == ""
+    then
+      fallback = alt
+    end
+
+    if not fallback then
+      for _, b in ipairs(vim.api.nvim_list_bufs()) do
+        if
+          b ~= view_buf
+          and b ~= raw_buf
+          and vim.api.nvim_buf_is_valid(b)
+          and vim.bo[b].buflisted
+          and vim.bo[b].buftype == ""
+        then
+          fallback = b
+          break
+        end
+      end
+    end
+
+    if not fallback then
+      fallback = vim.api.nvim_create_buf(true, false)
+    end
+
+    -- Switch all windows showing the viewer to the fallback buffer so Neovim never exits
+    for _, win in ipairs(wins) do
+      if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_set_buf(win, fallback)
+      end
+    end
+
+    self:destroy()
+
+    if vim.api.nvim_buf_is_valid(view_buf) then
+      pcall(vim.api.nvim_buf_delete, view_buf, { force = true })
+    end
+
+    -- Clean up the hidden unmodified raw CSV buffer so it does not linger in the bufferline
+    if
+      raw_buf
+      and raw_buf ~= fallback
+      and vim.api.nvim_buf_is_valid(raw_buf)
+      and not vim.bo[raw_buf].modified
+      and #vim.fn.win_findbuf(raw_buf) == 0
+    then
+      pcall(vim.api.nvim_buf_delete, raw_buf, { force = true })
+    end
   end
 
   function session:destroy()
