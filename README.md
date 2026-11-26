@@ -6,6 +6,8 @@
 
 **Read-only, live-updating CSV/TSV table viewer with full SQL support for Neovim — powered by [DuckDB](https://duckdb.org/).**
 
+![csvsql.nvim demo](assets/demo.gif)
+
 Open any `.csv` or `.tsv` file in Neovim and immediately inspect it as a crisp Unicode table, run real SQL queries against it (`WHERE`, `GROUP BY`, `ORDER BY`, `SUMMARIZE`, `JOIN`), and watch the table update in **real time** whenever the file changes on disk.
 
 ---

@@ -1,0 +1,26 @@
+order_id,region,product,status,amount,notes
+1001,APAC,Mechanical Keyboard,paid,189.00,Express shipping requested by customer for office delivery
+1002,EMEA,4K Monitor 27-inch,paid,429.50,Standard parcel
+1003,NA,Ergonomic Mouse,paid,79.99,Gift wrap included with personalized thank-you note inside
+1004,APAC,USB-C Dock Pro,pending,149.00,Awaiting warehouse confirmation
+1005,NA,Noise Cancelling Headphones,paid,299.00,Priority air freight scheduled for morning arrival
+1006,EMEA,Standing Desk Frame,paid,519.00,Heavy item - two-person delivery team assigned
+1007,APAC,Webcam 4K HDR,paid,129.00,Standard parcel
+1008,LATAM,Mechanical Keyboard,paid,189.00,Customs declaration attached to outer shipping label
+1009,NA,Desk Mat XL,refunded,39.50,Customer requested color exchange to midnight blue
+1010,EMEA,USB-C Dock Pro,paid,149.00,Delivered to reception desk
+1011,APAC,Ergonomic Mouse,paid,79.99,Standard parcel
+1012,NA,4K Monitor 27-inch,paid,429.50,Fragile handling sticker required on all sides of box
+1013,EMEA,Webcam 4K HDR,paid,129.00,Standard parcel
+1014,LATAM,Standing Desk Frame,pending,519.00,Scheduled for regional freight consolidation center
+1015,APAC,Noise Cancelling Headphones,paid,299.00,VIP account - priority support enabled
+1016,NA,Mechanical Keyboard,paid,189.00,Standard parcel
+1017,EMEA,Ergonomic Mouse,paid,79.99,Standard parcel
+1018,APAC,4K Monitor 27-inch,paid,429.50,Includes calibrated color profile certificate inside
+1019,NA,USB-C Dock Pro,paid,149.00,Standard parcel
+1020,LATAM,Webcam 4K HDR,paid,129.00,Standard parcel
+1021,EMEA,Noise Cancelling Headphones,paid,299.00,Signature required upon delivery at front gate
+1022,APAC,Desk Mat XL,paid,39.50,Standard parcel
+1023,NA,Standing Desk Frame,paid,519.00,Corporate bulk order batch #42
+1024,EMEA,Mechanical Keyboard,paid,189.00,Standard parcel
+1025,APAC,USB-C Dock Pro,paid,149.00,Standard parcel
