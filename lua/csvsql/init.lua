@@ -9,44 +9,92 @@ local M = {}
 local augroup_name = "CsvSqlAutoEnable"
 local warned_missing_duckdb = false
 
+---@param buf integer
+---@return boolean
+function M._is_supported_buffer(buf)
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return false
+  end
+  local filetypes = config.options.filetypes or { "csv", "tsv" }
+  local ft = vim.bo[buf].filetype
+  if vim.tbl_contains(filetypes, ft) then
+    return true
+  end
+  -- Also match by file extension so plugins like snacks.bigfile (filetype="bigfile") do not block rendering
+  local filepath = vim.api.nvim_buf_get_name(buf)
+  if filepath and filepath ~= "" then
+    local ext = vim.fn.fnamemodify(filepath, ":e"):lower()
+    if ext ~= "" and vim.tbl_contains(filetypes, ext) then
+      return true
+    end
+  end
+  return false
+end
+
+---@param buf integer
+local function maybe_auto_open(buf)
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  if vim.b[buf].csvsql_raw_mode then
+    return
+  end
+  if view.sessions_by_buf[buf] then
+    return
+  end
+  if not M._is_supported_buffer(buf) then
+    return
+  end
+  local filepath = vim.api.nvim_buf_get_name(buf)
+  if not filepath or filepath == "" or vim.fn.filereadable(filepath) ~= 1 then
+    return
+  end
+  if not duckdb.is_available() then
+    if not warned_missing_duckdb then
+      warned_missing_duckdb = true
+      vim.notify(
+        string.format(
+          "csvsql.nvim: DuckDB not found. Opening raw file. Run :CsvSqlInstall (or install via: %s)",
+          config.install_hint()
+        ),
+        vim.log.levels.WARN
+      )
+    end
+    return
+  end
+
+  -- Defer slightly so Neovim finishes buffer initialization cleanly
+  vim.schedule(function()
+    if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_get_current_buf() == buf and not vim.b[buf].csvsql_raw_mode then
+      view.open(filepath, buf)
+    end
+  end)
+end
+
 local function setup_autocmds()
   local group = vim.api.nvim_create_augroup(augroup_name, { clear = true })
   if not config.options.auto_enable then
     return
   end
 
+  local ext_patterns = {}
+  for _, ft in ipairs(config.options.filetypes or { "csv", "tsv" }) do
+    table.insert(ext_patterns, "*." .. ft)
+  end
+
   vim.api.nvim_create_autocmd("FileType", {
     group = group,
     pattern = config.options.filetypes,
     callback = function(args)
-      local buf = args.buf
-      if vim.b[buf].csvsql_raw_mode then
-        return
-      end
-      local filepath = vim.api.nvim_buf_get_name(buf)
-      if not filepath or filepath == "" or vim.fn.filereadable(filepath) ~= 1 then
-        return
-      end
-      if not duckdb.is_available() then
-        if not warned_missing_duckdb then
-          warned_missing_duckdb = true
-          vim.notify(
-            string.format(
-              "csvsql.nvim: DuckDB not found. Opening raw file. Run :CsvSqlInstall (or install via: %s)",
-              config.install_hint()
-            ),
-            vim.log.levels.WARN
-          )
-        end
-        return
-      end
+      maybe_auto_open(args.buf)
+    end,
+  })
 
-      -- Defer slightly so Neovim finishes buffer initialization cleanly
-      vim.schedule(function()
-        if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_get_current_buf() == buf and not vim.b[buf].csvsql_raw_mode then
-          view.open(filepath, buf)
-        end
-      end)
+  vim.api.nvim_create_autocmd("BufReadPost", {
+    group = group,
+    pattern = ext_patterns,
+    callback = function(args)
+      maybe_auto_open(args.buf)
     end,
   })
 end
@@ -55,6 +103,11 @@ end
 function M.setup(opts)
   config.setup(opts)
   setup_autocmds()
+
+  -- Handle the first buffer when lazy-loaded on FileType or BufReadPre
+  if config.options.auto_enable then
+    maybe_auto_open(vim.api.nvim_get_current_buf())
+  end
 end
 
 ---@param filepath? string

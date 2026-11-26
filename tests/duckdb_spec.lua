@@ -139,4 +139,22 @@ T.test("installer generates valid release asset candidates and managed path", fu
   T.assert_true(managed:find("duckdb", 1, true) ~= nil)
 end)
 
+T.test("auto-enable detects .csv files even when filetype is overridden to bigfile", function()
+  local csvsql = require("csvsql")
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(buf, "/tmp/huge_benchmark.csv")
+  vim.bo[buf].filetype = "bigfile"
+
+  T.assert_true(csvsql._is_supported_buffer(buf), ".csv with filetype=bigfile should still be supported")
+
+  local non_csv = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(non_csv, "/tmp/notes.txt")
+  vim.bo[non_csv].filetype = "bigfile"
+
+  T.assert_eq(csvsql._is_supported_buffer(non_csv), false, ".txt with filetype=bigfile should not match")
+
+  vim.api.nvim_buf_delete(buf, { force = true })
+  vim.api.nvim_buf_delete(non_csv, { force = true })
+end)
+
 T.finish()

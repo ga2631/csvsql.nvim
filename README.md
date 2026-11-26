@@ -38,7 +38,7 @@ Open any `.csv` or `.tsv` file in Neovim and immediately inspect it as a crisp U
 return {
   "ga2631/csvsql.nvim",
   build = ":CsvSqlInstall",
-  ft = { "csv", "tsv" },
+  event = { "BufReadPre *.csv", "BufReadPre *.tsv" },
   cmd = {
     "CsvSql",
     "CsvSqlOpen",
