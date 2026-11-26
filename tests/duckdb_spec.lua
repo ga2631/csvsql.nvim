@@ -189,4 +189,71 @@ T.test("session:close wipes viewer buffer without closing the window", function(
   vim.fn.delete(tmp)
 end)
 
+T.test("sticky header detects box/markdown headers and opens on scroll", function()
+  local sticky = require("csvsql.sticky")
+  local box_hdr = sticky.extract_table_header({
+    "┌────┬──────┐",
+    "│ id │ name │",
+    "├────┼──────┤",
+    "│ 1  │ bob  │",
+  }, "box")
+  T.assert_eq(#box_hdr, 3)
+
+  local md_hdr = sticky.extract_table_header({
+    "| id | name |",
+    "| --- | --- |",
+    "| 1 | bob |",
+  }, "markdown")
+  T.assert_eq(#md_hdr, 2)
+
+  -- Verify sticky floats appear when scrolled past line 1 and hide at line 1
+  local view = require("csvsql.view")
+  local tmp = vim.fn.tempname() .. ".csv"
+  local rows = { "id,name" }
+  for i = 1, 80 do
+    table.insert(rows, i .. ",user_" .. i)
+  end
+  vim.fn.writefile(rows, tmp)
+
+  local session = view.open(tmp)
+  -- Populate fake box table lines so test runs independently of duckdb
+  session.last_lines = { "┌────┬─────────┐", "│ id │  name   │", "├────┼─────────┤" }
+  for i = 1, 80 do
+    table.insert(session.last_lines, string.format("│ %-2d │ user_%-2d │", i, i))
+  end
+  session._banner_lines = { " csvsql │ test.csv", " SQL │ SELECT *", "────────────────" }
+  session._table_header_lines = sticky.extract_table_header(session.last_lines, "box")
+
+  local all_lines = vim.list_extend(vim.deepcopy(session._banner_lines), session.last_lines)
+  vim.bo[session.view_buf].modifiable = true
+  vim.api.nvim_buf_set_lines(session.view_buf, 0, -1, false, all_lines)
+  vim.bo[session.view_buf].modifiable = false
+
+  local win = session:find_view_win()
+  vim.api.nvim_win_call(win, function()
+    vim.fn.winrestview({ topline = 20, lnum = 25, leftcol = 0 })
+  end)
+  sticky.update(session)
+
+  T.assert_true(
+    session._sticky_banner_win ~= nil and vim.api.nvim_win_is_valid(session._sticky_banner_win),
+    "banner sticky float should open when scrolled down"
+  )
+  T.assert_true(
+    session._sticky_table_win ~= nil and vim.api.nvim_win_is_valid(session._sticky_table_win),
+    "table header sticky float should open when scrolled down"
+  )
+
+  -- Scroll back to top: floats should close
+  vim.api.nvim_win_call(win, function()
+    vim.fn.winrestview({ topline = 1, lnum = 1, leftcol = 0 })
+  end)
+  sticky.update(session)
+  T.assert_eq(session._sticky_banner_win, nil, "banner float should close at topline=1")
+  T.assert_eq(session._sticky_table_win, nil, "table float should close at topline=1")
+
+  session:close()
+  vim.fn.delete(tmp)
+end)
+
 T.finish()

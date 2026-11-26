@@ -107,6 +107,8 @@ Call `require("csvsql").setup(opts)` with any of the following defaults: >lua
     live_watch = true,
     editor_height = 8,
     show_header = true,
+    sticky_header = true,
+    safe_quit = true,
     keymaps = {
       editor = "gs",
       prompt = "gq",

@@ -157,6 +157,7 @@ require("csvsql").setup({
   live_watch = true,           -- Start live file watching automatically
   editor_height = 8,           -- Height (lines) of the SQL scratch split
   show_header = true,          -- Show status/query header banner
+  sticky_header = true,        -- Lock banner & table column header at top when scrolling down
   safe_quit = true,            -- Make :q close only the viewer buffer (not Neovim)
   keymaps = {
     editor = "gs",

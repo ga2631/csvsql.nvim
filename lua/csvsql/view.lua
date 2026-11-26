@@ -1,6 +1,7 @@
 local config = require("csvsql.config")
 local duckdb = require("csvsql.duckdb")
 local editor = require("csvsql.editor")
+local sticky = require("csvsql.sticky")
 local watcher_mod = require("csvsql.watcher")
 
 local M = {}
@@ -54,6 +55,7 @@ local function render_buffer(session)
   end
 
   local output = {}
+  local banner_lines = {}
   local header_lines = 0
   local error_line_idx = nil
 
@@ -69,7 +71,7 @@ local function render_buffer(session)
     end
 
     table.insert(
-      output,
+      banner_lines,
       string.format(
         " csvsql │ %s │ [%s] │ [%s] │ [%s] │ Updated: %s",
         short_file,
@@ -79,23 +81,31 @@ local function render_buffer(session)
         updated
       )
     )
-    table.insert(output, string.format(" SQL    │ %s", single_line_sql))
+    table.insert(banner_lines, string.format(" SQL    │ %s", single_line_sql))
     header_lines = 2
 
     if session.last_error then
       local first_err = vim.split(session.last_error, "\n", { plain = true })[1] or session.last_error
-      table.insert(output, string.format(" ERROR  │ %s", first_err))
+      table.insert(banner_lines, string.format(" ERROR  │ %s", first_err))
       error_line_idx = header_lines
       header_lines = header_lines + 1
     end
 
-    table.insert(output, string.rep("─", 80))
+    table.insert(banner_lines, string.rep("─", 80))
     header_lines = header_lines + 1
   elseif session.last_error then
     local first_err = vim.split(session.last_error, "\n", { plain = true })[1] or session.last_error
-    table.insert(output, "ERROR: " .. first_err)
+    table.insert(banner_lines, "ERROR: " .. first_err)
     error_line_idx = 0
   end
+
+  for _, line in ipairs(banner_lines) do
+    table.insert(output, line)
+  end
+
+  session._banner_lines = banner_lines
+  session._banner_error_line = error_line_idx
+  session._table_header_lines = sticky.extract_table_header(session.last_lines, config.options.output_mode)
 
   for _, line in ipairs(session.last_lines) do
     table.insert(output, line)
@@ -128,6 +138,8 @@ local function render_buffer(session)
       end)
     end
   end
+
+  sticky.update(session)
 end
 
 ---@param session CsvSqlSession
@@ -337,6 +349,7 @@ function M.open(filepath, raw_buf)
   end
 
   function session:toggle_raw()
+    sticky.close(self)
     local win = self:find_view_win() or vim.api.nvim_get_current_win()
     local target = self.raw_buf
     if not target or not vim.api.nvim_buf_is_valid(target) then
@@ -423,6 +436,7 @@ function M.open(filepath, raw_buf)
       self.watcher = nil
     end
     editor.close(self)
+    sticky.destroy(self)
     M.sessions_by_path[key] = nil
     M.sessions_by_buf[self.view_buf] = nil
   end
@@ -437,6 +451,24 @@ function M.open(filepath, raw_buf)
     once = true,
     callback = function()
       session:destroy()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "WinScrolled", "CursorMoved", "WinResized", "BufWinEnter" }, {
+    buffer = buf,
+    callback = function()
+      sticky.update(session)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "BufLeave", "WinClosed" }, {
+    buffer = buf,
+    callback = function()
+      vim.schedule(function()
+        if not vim.api.nvim_buf_is_valid(buf) or not session:find_view_win() then
+          sticky.close(session)
+        end
+      end)
     end,
   })
 
