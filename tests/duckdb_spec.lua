@@ -256,4 +256,29 @@ T.test("sticky header detects box/markdown headers and opens on scroll", functio
   vim.fn.delete(tmp)
 end)
 
+T.test("csvsql buffer stays alive when switching to another file and closing it", function()
+  local view = require("csvsql.view")
+  local tmp = vim.fn.tempname() .. ".csv"
+  vim.fn.writefile({ "id,name", "1,alice" }, tmp)
+
+  local session = view.open(tmp)
+  local view_buf = session.view_buf
+  local win = vim.api.nvim_get_current_win()
+
+  -- Open another file buffer in the same window (hides csvsql buffer)
+  local other_buf = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_win_set_buf(win, other_buf)
+
+  T.assert_true(vim.api.nvim_buf_is_valid(view_buf), "csvsql buffer should remain alive while hidden")
+  T.assert_true(vim.bo[view_buf].buflisted, "csvsql buffer should stay listed")
+
+  -- Switch back and delete other_buf
+  vim.api.nvim_win_set_buf(win, view_buf)
+  vim.api.nvim_buf_delete(other_buf, { force = true })
+  T.assert_true(vim.api.nvim_buf_is_valid(view_buf), "csvsql buffer should still be valid after closing other file")
+
+  session:close()
+  vim.fn.delete(tmp)
+end)
+
 T.finish()

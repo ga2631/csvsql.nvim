@@ -268,7 +268,7 @@ function M.open(filepath, raw_buf)
 
   local buf = vim.api.nvim_create_buf(true, true)
   vim.bo[buf].buftype = "nofile"
-  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].bufhidden = "hide"
   vim.bo[buf].swapfile = false
   vim.bo[buf].modifiable = false
   vim.bo[buf].filetype = "csvsql"
@@ -466,6 +466,10 @@ function M.open(filepath, raw_buf)
   end
 
   function session:destroy()
+    if self._destroyed then
+      return
+    end
+    self._destroyed = true
     if self._proc then
       pcall(function()
         self._proc:kill(15)
@@ -487,7 +491,7 @@ function M.open(filepath, raw_buf)
 
   setup_keymaps(session)
 
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
     buffer = buf,
     once = true,
     callback = function()
