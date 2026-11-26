@@ -15,6 +15,24 @@ M.saved_state = {}
 
 local ns = vim.api.nvim_create_namespace("csvsql_highlights")
 
+local function ensure_highlights()
+  vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, link = "ColorColumn" })
+  vim.api.nvim_set_hl(0, "CsvSqlRowOdd", { default = true, link = "Normal" })
+end
+
+---@param line string
+---@param output_mode? string
+---@return boolean
+local function is_bottom_border(line, output_mode)
+  local mode = output_mode or config.options.output_mode or "box"
+  if mode == "box" then
+    return vim.startswith(line, "└")
+  elseif mode == "table" then
+    return vim.startswith(line, "+")
+  end
+  return false
+end
+
 ---@class CsvSqlSession
 ---@field filepath string
 ---@field raw_buf integer|nil
@@ -118,6 +136,7 @@ local function render_buffer(session)
   vim.bo[buf].modifiable = false
   vim.bo[buf].modified = false
 
+  ensure_highlights()
   vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
   if config.options.show_header then
     vim.api.nvim_buf_add_highlight(buf, ns, "Title", 0, 0, -1)
@@ -126,6 +145,23 @@ local function render_buffer(session)
   end
   if error_line_idx ~= nil then
     vim.api.nvim_buf_add_highlight(buf, ns, "ErrorMsg", error_line_idx, 0, -1)
+  end
+
+  -- Apply alternating row colors (zebra striping) to table data rows
+  if config.options.zebra_striping and #session._table_header_lines > 0 then
+    local data_start = #banner_lines + #session._table_header_lines
+    local data_end = #output - 1
+    if data_end >= data_start and is_bottom_border(output[data_end + 1] or "", config.options.output_mode) then
+      data_end = data_end - 1
+    end
+    for idx = data_start, data_end do
+      local row_num = idx - data_start
+      local hl = (row_num % 2 == 1) and "CsvSqlRowEven" or "CsvSqlRowOdd"
+      vim.api.nvim_buf_set_extmark(buf, ns, idx, 0, {
+        line_hl_group = hl,
+        priority = 50,
+      })
+    end
   end
 
   -- Restore cursor & scroll position

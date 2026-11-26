@@ -158,6 +158,7 @@ require("csvsql").setup({
   editor_height = 8,           -- Height (lines) of the SQL scratch split
   show_header = true,          -- Show status/query header banner
   sticky_header = true,        -- Lock banner & table column header at top when scrolling down
+  zebra_striping = true,       -- Alternate row colors (CsvSqlRowOdd / CsvSqlRowEven)
   safe_quit = true,            -- Make :q close only the viewer buffer (not Neovim)
   keymaps = {
     editor = "gs",

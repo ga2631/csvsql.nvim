@@ -313,4 +313,37 @@ T.test("single-buffer mode replaces raw buffer with reader and vice versa", func
   vim.fn.delete(tmp)
 end)
 
+T.test("zebra striping applies alternating CsvSqlRowOdd/CsvSqlRowEven extmarks on data rows", function()
+  local view = require("csvsql.view")
+  local tmp = vim.fn.tempname() .. ".csv"
+  vim.fn.writefile({ "id,name", "1,a", "2,b", "3,c" }, tmp)
+
+  local session = view.open(tmp)
+  session.last_lines = {
+    "┌────┬──────┐",
+    "│ id │ name │",
+    "├────┼──────┤",
+    "│ 1  │ a    │",
+    "│ 2  │ b    │",
+    "│ 3  │ c    │",
+    "└────┴──────┘",
+  }
+  -- Trigger render via toggle_watch twice (no duckdb dependency)
+  session:toggle_watch()
+
+  local ns = vim.api.nvim_get_namespaces().csvsql_highlights
+  local marks = vim.api.nvim_buf_get_extmarks(session.view_buf, ns, 0, -1, { details = true })
+  local row_hls = {}
+  for _, m in ipairs(marks) do
+    if m[4] and m[4].line_hl_group then
+      table.insert(row_hls, m[4].line_hl_group)
+    end
+  end
+
+  T.assert_eq(row_hls, { "CsvSqlRowOdd", "CsvSqlRowEven", "CsvSqlRowOdd" })
+
+  session:close()
+  vim.fn.delete(tmp)
+end)
+
 T.finish()

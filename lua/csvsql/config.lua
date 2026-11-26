@@ -25,6 +25,7 @@
 ---@field editor_height integer Height (lines) of the SQL scratch split
 ---@field show_header boolean Show status/query header banner at the top of the table buffer
 ---@field sticky_header boolean Lock the status banner and table column header at the top when scrolling down
+---@field zebra_striping boolean Alternate background colors on table data rows (CsvSqlRowOdd / CsvSqlRowEven)
 ---@field safe_quit boolean Make :q in the table view close only the csvsql buffer instead of quitting Neovim
 ---@field keymaps CsvSqlKeymaps Buffer-local keymaps for the table view
 
@@ -46,6 +47,7 @@ M.defaults = {
   editor_height = 8,
   show_header = true,
   sticky_header = true,
+  zebra_striping = true,
   safe_quit = true,
   keymaps = {
     editor = "gs",

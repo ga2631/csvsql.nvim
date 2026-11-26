@@ -108,6 +108,7 @@ Call `require("csvsql").setup(opts)` with any of the following defaults: >lua
     editor_height = 8,
     show_header = true,
     sticky_header = true,
+    zebra_striping = true,
     safe_quit = true,
     keymaps = {
       editor = "gs",
