@@ -154,14 +154,24 @@ function M.update(session)
   end
 
   local win_view = vim.api.nvim_win_call(parent_win, vim.fn.winsaveview)
-  if not win_view or (win_view.topline or 1) <= 1 then
+  if not win_view then
+    M.close(session)
+    return
+  end
+
+  local scrolled_down = (win_view.topline or 1) > 1
+  local scrolled_right = (win_view.leftcol or 0) > 0
+
+  if not scrolled_down and not scrolled_right then
     M.close(session)
     return
   end
 
   local banner_lines = session._banner_lines or {}
   local table_lines = session._table_header_lines or {}
-  local total_h = #banner_lines + #table_lines
+  local show_banner = #banner_lines > 0 and (scrolled_down or scrolled_right)
+  local show_table_hdr = #table_lines > 0 and scrolled_down
+  local total_h = (show_banner and #banner_lines or 0) + (show_table_hdr and #table_lines or 0)
   local win_h = vim.api.nvim_win_get_height(parent_win)
   local win_w = vim.api.nvim_win_get_width(parent_win)
 
@@ -170,8 +180,8 @@ function M.update(session)
     return
   end
 
-  -- 1. Pinned status/SQL banner (always leftcol = 0 so it stays visible while scrolling right)
-  if #banner_lines > 0 then
+  -- 1. Pinned status/SQL banner (always leftcol = 0 on vertical OR horizontal scroll)
+  if show_banner then
     local bbuf = ensure_buf(session._sticky_banner_buf)
     session._sticky_banner_buf = bbuf
 
@@ -203,8 +213,8 @@ function M.update(session)
     session._sticky_banner_win = nil
   end
 
-  -- 2. Pinned table column header (synced horizontally with parent_win.leftcol)
-  if #table_lines > 0 then
+  -- 2. Pinned table column header (only when scrolled down; synced horizontally with parent_win.leftcol)
+  if show_table_hdr then
     local tbuf = ensure_buf(session._sticky_table_buf)
     session._sticky_table_buf = tbuf
 
@@ -212,8 +222,9 @@ function M.update(session)
     vim.api.nvim_buf_set_lines(tbuf, 0, -1, false, table_lines)
     vim.bo[tbuf].modifiable = false
 
+    local table_row = show_banner and #banner_lines or 0
     session._sticky_table_win =
-      open_or_update_float(session._sticky_table_win, tbuf, parent_win, #banner_lines, win_w, #table_lines)
+      open_or_update_float(session._sticky_table_win, tbuf, parent_win, table_row, win_w, #table_lines)
     if session._sticky_table_win and vim.api.nvim_win_is_valid(session._sticky_table_win) then
       vim.api.nvim_win_call(session._sticky_table_win, function()
         vim.fn.winrestview({ topline = 1, leftcol = win_view.leftcol or 0 })

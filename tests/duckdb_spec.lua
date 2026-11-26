@@ -244,13 +244,24 @@ T.test("sticky header detects box/markdown headers and opens on scroll", functio
     "table header sticky float should open when scrolled down"
   )
 
-  -- Scroll back to top: floats should close
+  -- Scroll horizontally only (topline=1, leftcol=10): banner stays sticky, table header does NOT
   vim.api.nvim_win_call(win, function()
-    vim.fn.winrestview({ topline = 1, lnum = 1, leftcol = 0 })
+    vim.fn.winrestview({ topline = 1, lnum = 7, col = 15, leftcol = 10 })
   end)
   sticky.update(session)
-  T.assert_eq(session._sticky_banner_win, nil, "banner float should close at topline=1")
-  T.assert_eq(session._sticky_table_win, nil, "table float should close at topline=1")
+  T.assert_true(
+    session._sticky_banner_win ~= nil and vim.api.nvim_win_is_valid(session._sticky_banner_win),
+    "banner float should stay sticky on horizontal scroll"
+  )
+  T.assert_eq(session._sticky_table_win, nil, "table header float should stay closed when topline=1")
+
+  -- Scroll back to origin (topline=1, leftcol=0): both floats should close
+  vim.api.nvim_win_call(win, function()
+    vim.fn.winrestview({ topline = 1, lnum = 1, col = 0, leftcol = 0 })
+  end)
+  sticky.update(session)
+  T.assert_eq(session._sticky_banner_win, nil, "banner float should close at topline=1, leftcol=0")
+  T.assert_eq(session._sticky_table_win, nil, "table float should close at topline=1, leftcol=0")
 
   session:close()
   vim.fn.delete(tmp)
