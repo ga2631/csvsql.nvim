@@ -74,3 +74,15 @@ vim.api.nvim_create_user_command("CsvSqlClose", function()
 end, {
   desc = "Close only the csvsql viewer buffer without quitting Neovim",
 })
+
+vim.api.nvim_create_user_command("CsvSqlTruncate", function()
+  csvsql().toggle_truncate()
+end, {
+  desc = "Toggle column ellipsis truncation (max_col_width) vs full cell values",
+})
+
+vim.api.nvim_create_user_command("CsvSqlWrap", function()
+  csvsql().toggle_wrap()
+end, {
+  desc = "Toggle viewbox line wrapping in the csvsql table viewer",
+})

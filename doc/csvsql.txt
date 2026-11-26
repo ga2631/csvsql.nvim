@@ -66,6 +66,13 @@ Run `:checkhealth csvsql` to verify your installation.
                         Neovim. Also bound to `q` and `:q` (when `safe_quit`
                         is enabled).
 
+                                                             *:CsvSqlTruncate*
+:CsvSqlTruncate         Toggle column ellipsis truncation (`max_col_width`,
+                        default 256 chars) vs full cell values.
+
+                                                                 *:CsvSqlWrap*
+:CsvSqlWrap             Toggle viewbox line wrapping (`wrap` / `nowrap`).
+
 ==============================================================================
 4. KEYMAPS                                                    *csvsql-keymaps*
 

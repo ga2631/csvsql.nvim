@@ -6,6 +6,8 @@
 ---@field toggle_raw string|false Toggle between table view and raw CSV
 ---@field toggle_watch string|false Toggle live file watching
 ---@field summarize string|false Run SUMMARIZE data for quick column stats
+---@field toggle_truncate string|false Toggle column ellipsis truncation vs full values
+---@field toggle_wrap string|false Toggle viewbox line wrapping
 ---@field close string|false Close only the csvsql viewer buffer (without quitting Neovim)
 
 ---@class CsvSqlConfig
@@ -14,6 +16,9 @@
 ---@field duckdb_bin string Path or binary name for DuckDB CLI
 ---@field table_name string Virtual SQL view name representing the current CSV file
 ---@field default_limit integer|false Row limit applied to the default query (false to disable)
+---@field truncate boolean Ellipsis-truncate cells longer than max_col_width by default
+---@field max_col_width integer Maximum characters per cell before ellipsis truncation (default 256)
+---@field wrap boolean Wrap long lines to the current window viewbox by default
 ---@field output_mode "box"|"markdown"|"table"|"column" DuckDB table output mode
 ---@field debounce_ms integer Debounce interval (ms) for real-time file watcher updates
 ---@field live_watch boolean Enable real-time file watching by default
@@ -31,6 +36,9 @@ M.defaults = {
   duckdb_bin = "duckdb",
   table_name = "data",
   default_limit = 1000,
+  truncate = true,
+  max_col_width = 256,
+  wrap = false,
   output_mode = "box",
   debounce_ms = 200,
   live_watch = true,
@@ -45,6 +53,8 @@ M.defaults = {
     toggle_raw = "gr",
     toggle_watch = "gw",
     summarize = "gS",
+    toggle_truncate = "gt",
+    toggle_wrap = "gW",
     close = "q",
   },
 }
@@ -82,6 +92,12 @@ function M.setup(opts)
 
   if type(merged.debounce_ms) ~= "number" or merged.debounce_ms < 0 then
     merged.debounce_ms = M.defaults.debounce_ms
+  end
+
+  if type(merged.max_col_width) ~= "number" or merged.max_col_width < 2 then
+    merged.max_col_width = M.defaults.max_col_width
+  else
+    merged.max_col_width = math.floor(merged.max_col_width)
   end
 
   M.options = merged

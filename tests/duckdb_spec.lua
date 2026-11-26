@@ -41,16 +41,24 @@ T.test("duckdb.default_query respects default_limit and table_name", function()
   T.assert_eq(duckdb.default_query({ table_name = "logs", default_limit = false }), "SELECT * FROM logs")
 end)
 
-T.test("duckdb.build_sql wraps path safely and strips trailing semicolons", function()
-  local sql = duckdb.build_sql(
+T.test("duckdb.build_sql wraps path safely, strips semicolons, and handles truncate modes", function()
+  local full_sql = duckdb.build_sql(
     [[C:\tmp\o'neil data.csv]],
     "  SELECT id, name FROM data WHERE id > 10;;  ",
-    { table_name = "data", default_limit = 1000 }
+    { table_name = "data", default_limit = 1000, truncate = false }
   )
   T.assert_eq(
-    sql,
+    full_sql,
     "CREATE OR REPLACE TEMP VIEW data AS SELECT * FROM read_csv_auto('C:/tmp/o''neil data.csv');\nSELECT id, name FROM data WHERE id > 10;"
   )
+
+  local trunc_sql = duckdb.build_sql(
+    "/tmp/a.csv",
+    "SELECT id, payload FROM data",
+    { table_name = "data", truncate = true, max_col_width = 256 }
+  )
+  T.assert_true(trunc_sql:find("length(CAST(COLUMNS(*) AS VARCHAR)) > 256", 1, true) ~= nil)
+  T.assert_true(trunc_sql:find("left(CAST(COLUMNS(*) AS VARCHAR), 255) || '…'", 1, true) ~= nil)
 end)
 
 T.test("duckdb.build_sql supports user CTEs and empty SQL fallback", function()
@@ -62,7 +70,7 @@ T.test("duckdb.build_sql supports user CTEs and empty SQL fallback", function()
   T.assert_true(cte_sql:find("WITH top AS", 1, true) ~= nil)
 
   local empty_sql = duckdb.build_sql("/tmp/a.csv", "   ", { table_name = "data", default_limit = 25 })
-  T.assert_true(empty_sql:find("SELECT * FROM data LIMIT 25;", 1, true) ~= nil)
+  T.assert_true(empty_sql:find("SELECT * FROM data LIMIT 25", 1, true) ~= nil)
 end)
 
 T.test("watcher detects real-time file modification and cleans up on stop", function()
@@ -100,6 +108,8 @@ T.test("plugin commands and health module load cleanly", function()
   T.assert_true(cmds.CsvSqlSummarize ~= nil, ":CsvSqlSummarize should be registered")
   T.assert_true(cmds.CsvSqlInstall ~= nil, ":CsvSqlInstall should be registered")
   T.assert_true(cmds.CsvSqlClose ~= nil, ":CsvSqlClose should be registered")
+  T.assert_true(cmds.CsvSqlTruncate ~= nil, ":CsvSqlTruncate should be registered")
+  T.assert_true(cmds.CsvSqlWrap ~= nil, ":CsvSqlWrap should be registered")
 
   local health = require("csvsql.health")
   T.assert_true(type(health.check) == "function")

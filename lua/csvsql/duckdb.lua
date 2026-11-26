@@ -43,11 +43,29 @@ function M.build_sql(filepath, user_sql, opts)
   -- Strip trailing semicolons so we append exactly one cleanly.
   trimmed = trimmed:gsub(";+%s*$", "")
 
+  local query_stmt = trimmed
+  local should_truncate = opts.truncate
+  if should_truncate == nil then
+    should_truncate = config.options.truncate
+  end
+  local max_w = opts.max_col_width or config.options.max_col_width or 256
+
+  -- Apply per-column ellipsis truncation for single-statement queries when enabled.
+  if should_truncate and type(max_w) == "number" and max_w >= 2 and not trimmed:find(";", 1, true) then
+    max_w = math.floor(max_w)
+    query_stmt = string.format(
+      "SELECT CASE WHEN length(CAST(COLUMNS(*) AS VARCHAR)) > %d THEN left(CAST(COLUMNS(*) AS VARCHAR), %d) || '…' ELSE CAST(COLUMNS(*) AS VARCHAR) END FROM (%s)",
+      max_w,
+      max_w - 1,
+      trimmed
+    )
+  end
+
   return string.format(
     "CREATE OR REPLACE TEMP VIEW %s AS SELECT * FROM read_csv_auto('%s');\n%s;",
     tbl,
     safe_path,
-    trimmed
+    query_stmt
   )
 end
 

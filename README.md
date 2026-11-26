@@ -116,6 +116,8 @@ Verify your setup anytime inside Neovim with:
 | `:CsvSqlSummarize` | Run `SUMMARIZE data` for instant column stats |
 | `:CsvSqlInstall[!]` | Auto-install DuckDB CLI into Neovim's data directory (`!` forces reinstall/upgrade) |
 | `:CsvSqlClose` | Close only the `csvsql` viewer buffer without quitting Neovim |
+| `:CsvSqlTruncate` | Toggle column ellipsis truncation (default 256 chars) vs full cell values |
+| `:CsvSqlWrap` | Toggle viewbox line wrapping (`WRAP` / `NOWRAP`) |
 
 ### Default Keymaps (Table View Buffer)
 
@@ -128,6 +130,8 @@ Verify your setup anytime inside Neovim with:
 | `r` | Manual refresh |
 | `gr` | Toggle raw CSV buffer |
 | `gw` | Toggle live file watching (`LIVE` / `PAUSED`) |
+| `gt` | Toggle column ellipsis (`TRUNC:256`) vs full values (`FULL`) |
+| `gW` | Toggle viewbox line wrap (`WRAP` / `NOWRAP`) |
 | `q` | Close only the `csvsql` viewer buffer (`:q` also safely closes just the buffer) |
 
 In the **SQL scratch split**: `<CR>` (normal mode), `<C-s>` (normal/insert), or `:w` runs the query; `q` closes the split.
@@ -145,6 +149,9 @@ require("csvsql").setup({
   duckdb_bin = "duckdb",       -- Binary name or full path to duckdb
   table_name = "data",         -- Virtual SQL table name for the current CSV
   default_limit = 1000,        -- Row limit for default query (false to disable)
+  truncate = true,             -- Ellipsis-truncate cells longer than max_col_width
+  max_col_width = 256,         -- Max characters per cell before ellipsis (…)
+  wrap = false,                -- Wrap long lines to window viewbox width
   output_mode = "box",         -- "box" | "markdown" | "table" | "column"
   debounce_ms = 200,           -- Debounce interval for live file watcher (ms)
   live_watch = true,           -- Start live file watching automatically
@@ -159,6 +166,8 @@ require("csvsql").setup({
     toggle_raw = "gr",
     toggle_watch = "gw",
     summarize = "gS",
+    toggle_truncate = "gt",
+    toggle_wrap = "gW",
     close = "q",
   },
 })

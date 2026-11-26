@@ -19,6 +19,8 @@ local ns = vim.api.nvim_create_namespace("csvsql_highlights")
 ---@field editor_buf integer|nil
 ---@field editor_win integer|nil
 ---@field query string
+---@field truncate boolean
+---@field wrap boolean
 ---@field last_lines string[]
 ---@field last_updated string|nil
 ---@field last_error string|nil
@@ -57,6 +59,8 @@ local function render_buffer(session)
 
   if config.options.show_header then
     local watch_label = (session.watcher and session.watcher.active) and "LIVE" or "PAUSED"
+    local trunc_label = session.truncate and ("TRUNC:" .. tostring(config.options.max_col_width or 256)) or "FULL"
+    local wrap_label = session.wrap and "WRAP" or "NOWRAP"
     local updated = session.last_updated or "loading..."
     local short_file = vim.fs.basename(session.filepath)
     local single_line_sql = (session.query or ""):gsub("%s+", " ")
@@ -64,7 +68,17 @@ local function render_buffer(session)
       single_line_sql = single_line_sql:sub(1, 87) .. "..."
     end
 
-    table.insert(output, string.format(" csvsql │ %s │ [%s] │ Updated: %s", short_file, watch_label, updated))
+    table.insert(
+      output,
+      string.format(
+        " csvsql │ %s │ [%s] │ [%s] │ [%s] │ Updated: %s",
+        short_file,
+        watch_label,
+        trunc_label,
+        wrap_label,
+        updated
+      )
+    )
     table.insert(output, string.format(" SQL    │ %s", single_line_sql))
     header_lines = 2
 
@@ -158,6 +172,14 @@ local function setup_keymaps(session)
     session:summarize()
   end, "csvsql: summarize columns")
 
+  map(km.toggle_truncate, function()
+    session:toggle_truncate()
+  end, "csvsql: toggle column ellipsis / full mode")
+
+  map(km.toggle_wrap, function()
+    session:toggle_wrap()
+  end, "csvsql: toggle viewbox line wrap")
+
   map(km.close, function()
     session:close()
   end, "csvsql: close viewer buffer")
@@ -186,7 +208,7 @@ function M.open(filepath, raw_buf)
     end
     local win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(win, existing.view_buf)
-    vim.wo[win].wrap = false
+    vim.wo[win].wrap = existing.wrap
     existing:refresh()
     return existing
   end
@@ -209,6 +231,8 @@ function M.open(filepath, raw_buf)
     editor_buf = nil,
     editor_win = nil,
     query = duckdb.default_query(),
+    truncate = config.options.truncate,
+    wrap = config.options.wrap,
     last_lines = { "Loading..." },
     last_updated = nil,
     last_error = nil,
@@ -240,6 +264,10 @@ function M.open(filepath, raw_buf)
     self._seq = self._seq + 1
     local current_seq = self._seq
 
+    local run_opts = vim.tbl_extend("force", {}, config.options, {
+      truncate = self.truncate,
+    })
+
     self._proc = duckdb.run_query(self.filepath, self.query, function(res)
       if current_seq ~= self._seq then
         return
@@ -254,7 +282,7 @@ function M.open(filepath, raw_buf)
         self.last_error = res.err or "unknown duckdb error"
       end
       render_buffer(self)
-    end)
+    end, run_opts)
   end
 
   function session:set_query(sql)
@@ -277,6 +305,21 @@ function M.open(filepath, raw_buf)
   function session:summarize()
     local tbl = config.options.table_name or "data"
     self:set_query(string.format("SUMMARIZE %s", tbl))
+  end
+
+  function session:toggle_truncate()
+    self.truncate = not self.truncate
+    self:refresh()
+  end
+
+  function session:toggle_wrap()
+    self.wrap = not self.wrap
+    for _, win in ipairs(vim.fn.win_findbuf(self.view_buf)) do
+      if vim.api.nvim_win_is_valid(win) then
+        vim.wo[win].wrap = self.wrap
+      end
+    end
+    render_buffer(self)
   end
 
   function session:toggle_watch()
@@ -406,7 +449,7 @@ function M.open(filepath, raw_buf)
 
   local win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(win, buf)
-  vim.wo[win].wrap = false
+  vim.wo[win].wrap = session.wrap
   vim.wo[win].number = false
   vim.wo[win].relativenumber = false
 

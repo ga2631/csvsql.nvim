@@ -192,6 +192,20 @@ function M.toggle_watch()
   end
 end
 
+function M.toggle_truncate()
+  local session = view.get_session()
+  if session then
+    session:toggle_truncate()
+  end
+end
+
+function M.toggle_wrap()
+  local session = view.get_session()
+  if session then
+    session:toggle_wrap()
+  end
+end
+
 function M.summarize()
   local session = view.get_session()
   if not session then
