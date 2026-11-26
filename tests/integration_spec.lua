@@ -55,10 +55,10 @@ T.test("opens CSV, runs SQL query, and live-updates on disk change", function()
   vim.fn.delete(tmp)
 end)
 
-T.test("truncates >256 char cells by default and toggles full & wrap modes", function()
-  csvsql.setup({ debounce_ms = 50, truncate = true, max_col_width = 256, wrap = false })
+T.test("truncates >48 char cells by default and toggles full & wrap modes", function()
+  csvsql.setup({ debounce_ms = 50, truncate = true, max_col_width = 48, wrap = false })
 
-  local long_val = string.rep("x", 300)
+  local long_val = string.rep("x", 100)
   local tmp = vim.fn.tempname() .. ".csv"
   vim.fn.writefile({
     "id,payload",
@@ -71,13 +71,13 @@ T.test("truncates >256 char cells by default and toggles full & wrap modes", fun
   T.assert_eq(session.wrap, false)
   T.assert_eq(vim.wo[vim.api.nvim_get_current_win()].wrap, false)
 
-  -- Default mode: truncated to 255 'x' + '…' (full 300-char string should NOT appear)
-  local expected_trunc = string.rep("x", 255) .. "…"
+  -- Default mode: truncated to 47 'x' + '…' (full 100-char string should NOT appear)
+  local expected_trunc = string.rep("x", 47) .. "…"
   local trunc_ok = vim.wait(3000, function()
     local text = table.concat(vim.api.nvim_buf_get_lines(session.view_buf, 0, -1, false), "\n")
     return text:find(expected_trunc, 1, true) ~= nil and text:find(long_val, 1, true) == nil
   end, 30)
-  T.assert_true(trunc_ok, "default mode should ellipsis cells longer than 256 chars")
+  T.assert_true(trunc_ok, "default mode should ellipsis cells longer than 48 chars")
 
   -- Toggle to full mode
   session:toggle_truncate()

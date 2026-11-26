@@ -55,10 +55,10 @@ T.test("duckdb.build_sql wraps path safely, strips semicolons, and handles trunc
   local trunc_sql = duckdb.build_sql(
     "/tmp/a.csv",
     "SELECT id, payload FROM data",
-    { table_name = "data", truncate = true, max_col_width = 256 }
+    { table_name = "data", truncate = true, max_col_width = 48 }
   )
-  T.assert_true(trunc_sql:find("length(CAST(COLUMNS(*) AS VARCHAR)) > 256", 1, true) ~= nil)
-  T.assert_true(trunc_sql:find("left(CAST(COLUMNS(*) AS VARCHAR), 255) || '…'", 1, true) ~= nil)
+  T.assert_true(trunc_sql:find("length(CAST(COLUMNS(*) AS VARCHAR)) > 48", 1, true) ~= nil)
+  T.assert_true(trunc_sql:find("left(CAST(COLUMNS(*) AS VARCHAR), 47) || '…'", 1, true) ~= nil)
 end)
 
 T.test("duckdb.build_sql supports user CTEs and empty SQL fallback", function()

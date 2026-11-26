@@ -48,7 +48,7 @@ function M.build_sql(filepath, user_sql, opts)
   if should_truncate == nil then
     should_truncate = config.options.truncate
   end
-  local max_w = opts.max_col_width or config.options.max_col_width or 256
+  local max_w = opts.max_col_width or config.options.max_col_width or 48
 
   -- Apply per-column ellipsis truncation for single-statement queries when enabled.
   if should_truncate and type(max_w) == "number" and max_w >= 2 and not trimmed:find(";", 1, true) then

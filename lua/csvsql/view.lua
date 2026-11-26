@@ -59,7 +59,7 @@ local function render_buffer(session)
 
   if config.options.show_header then
     local watch_label = (session.watcher and session.watcher.active) and "LIVE" or "PAUSED"
-    local trunc_label = session.truncate and ("TRUNC:" .. tostring(config.options.max_col_width or 256)) or "FULL"
+    local trunc_label = session.truncate and ("TRUNC:" .. tostring(config.options.max_col_width or 48)) or "FULL"
     local wrap_label = session.wrap and "WRAP" or "NOWRAP"
     local updated = session.last_updated or "loading..."
     local short_file = vim.fs.basename(session.filepath)

@@ -17,7 +17,7 @@
 ---@field table_name string Virtual SQL view name representing the current CSV file
 ---@field default_limit integer|false Row limit applied to the default query (false to disable)
 ---@field truncate boolean Ellipsis-truncate cells longer than max_col_width by default
----@field max_col_width integer Maximum characters per cell before ellipsis truncation (default 256)
+---@field max_col_width integer Maximum characters per cell before ellipsis truncation (default 48)
 ---@field wrap boolean Wrap long lines to the current window viewbox by default
 ---@field output_mode "box"|"markdown"|"table"|"column" DuckDB table output mode
 ---@field debounce_ms integer Debounce interval (ms) for real-time file watcher updates
@@ -37,7 +37,7 @@ M.defaults = {
   table_name = "data",
   default_limit = 1000,
   truncate = true,
-  max_col_width = 256,
+  max_col_width = 48,
   wrap = false,
   output_mode = "box",
   debounce_ms = 200,
