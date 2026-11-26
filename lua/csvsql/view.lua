@@ -35,13 +35,13 @@ local function ensure_highlights()
       local g = math.floor(normal.bg / 256) % 256
       local b = normal.bg % 256
       local lum = 0.299 * r + 0.587 * g + 0.114 * b
-      local bg = shift_rgb(normal.bg, lum < 128 and 18 or -14)
+      local bg = shift_rgb(normal.bg, lum < 128 and 26 or -20)
       vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = bg })
     elseif vim.o.background == "light" then
-      vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = "#ebedf0", ctermbg = 254 })
+      vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = "#dfe3e8", ctermbg = 253 })
     else
-      -- Visible subtle surface tint for transparent dark terminals
-      vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = "#1c2128", ctermbg = 235 })
+      -- Clearly visible surface tint for transparent dark terminals
+      vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = "#252c36", ctermbg = 236 })
     end
   end
   vim.api.nvim_set_hl(0, "CsvSqlRowOdd", { default = true, link = "Normal" })
