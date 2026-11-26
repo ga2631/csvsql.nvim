@@ -10,6 +10,8 @@ local M = {}
 M.sessions_by_path = {}
 ---@type table<integer, CsvSqlSession>
 M.sessions_by_buf = {}
+---@type table<string, { query: string, truncate: boolean, wrap: boolean }>
+M.saved_state = {}
 
 local ns = vim.api.nvim_create_namespace("csvsql_highlights")
 
@@ -247,6 +249,20 @@ local function restore_view_win(win)
   end
 end
 
+---@param raw_buf integer|nil
+---@param exclude_buf integer|nil
+local function cleanup_raw_buf(raw_buf, exclude_buf)
+  if
+    raw_buf
+    and raw_buf ~= exclude_buf
+    and vim.api.nvim_buf_is_valid(raw_buf)
+    and not vim.bo[raw_buf].modified
+    and #vim.fn.win_findbuf(raw_buf) == 0
+  then
+    pcall(vim.api.nvim_buf_delete, raw_buf, { force = true })
+  end
+end
+
 ---@param filepath string
 ---@param raw_buf? integer
 ---@return CsvSqlSession
@@ -256,12 +272,10 @@ function M.open(filepath, raw_buf)
 
   local existing = M.sessions_by_path[key]
   if existing and vim.api.nvim_buf_is_valid(existing.view_buf) then
-    if raw_buf and vim.api.nvim_buf_is_valid(raw_buf) then
-      existing.raw_buf = raw_buf
-    end
     local win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(win, existing.view_buf)
     configure_view_win(win, existing.wrap)
+    cleanup_raw_buf(raw_buf, existing.view_buf)
     existing:refresh()
     return existing
   end
@@ -276,16 +290,18 @@ function M.open(filepath, raw_buf)
   local short_name = vim.fs.basename(abs)
   pcall(vim.api.nvim_buf_set_name, buf, string.format("csvsql://%s", short_name))
 
+  local prev = M.saved_state[key]
+
   ---@type CsvSqlSession
   local session = {
     filepath = abs,
-    raw_buf = raw_buf,
+    raw_buf = nil,
     view_buf = buf,
     editor_buf = nil,
     editor_win = nil,
-    query = duckdb.default_query(),
-    truncate = config.options.truncate,
-    wrap = config.options.wrap,
+    query = (prev and prev.query) or duckdb.default_query(),
+    truncate = prev and prev.truncate ~= nil and prev.truncate or config.options.truncate,
+    wrap = prev and prev.wrap ~= nil and prev.wrap or config.options.wrap,
     last_lines = { "Loading..." },
     last_updated = nil,
     last_error = nil,
@@ -390,16 +406,32 @@ function M.open(filepath, raw_buf)
   end
 
   function session:toggle_raw()
-    sticky.close(self)
+    local view_buf = self.view_buf
     local win = self:find_view_win() or vim.api.nvim_get_current_win()
-    local target = self.raw_buf
-    if not target or not vim.api.nvim_buf_is_valid(target) then
-      target = vim.fn.bufadd(self.filepath)
-      vim.fn.bufload(target)
-      self.raw_buf = target
-    end
+
+    -- Preserve active query & display preferences when switching to raw mode
+    M.saved_state[key] = {
+      query = self.query,
+      truncate = self.truncate,
+      wrap = self.wrap,
+    }
+
+    sticky.close(self)
+
+    local target = vim.fn.bufadd(self.filepath)
     vim.b[target].csvsql_raw_mode = true
-    vim.api.nvim_win_set_buf(win, target)
+    vim.fn.bufload(target)
+    vim.bo[target].buflisted = true
+
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_set_buf(win, target)
+      restore_view_win(win)
+    end
+
+    self:destroy()
+    if vim.api.nvim_buf_is_valid(view_buf) then
+      pcall(vim.api.nvim_buf_delete, view_buf, { force = true })
+    end
   end
 
   function session:close()
@@ -542,6 +574,7 @@ function M.open(filepath, raw_buf)
   local win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(win, buf)
   configure_view_win(win, session.wrap)
+  cleanup_raw_buf(raw_buf, buf)
 
   render_buffer(session)
   session:refresh()

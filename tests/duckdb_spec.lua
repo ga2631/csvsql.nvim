@@ -281,4 +281,36 @@ T.test("csvsql buffer stays alive when switching to another file and closing it"
   vim.fn.delete(tmp)
 end)
 
+T.test("single-buffer mode replaces raw buffer with reader and vice versa", function()
+  local view = require("csvsql.view")
+  local csvsql = require("csvsql")
+  local tmp = vim.fn.tempname() .. ".csv"
+  vim.fn.writefile({ "id,name", "1,alice" }, tmp)
+
+  local raw_buf = vim.fn.bufadd(tmp)
+  vim.fn.bufload(raw_buf)
+  vim.api.nvim_win_set_buf(0, raw_buf)
+
+  -- Opening csvsql should wipe the unmodified raw buffer (only 1 buffer remains)
+  local session = view.open(tmp, raw_buf)
+  local view_buf = session.view_buf
+  T.assert_eq(vim.api.nvim_buf_is_valid(raw_buf), false, "unmodified raw buffer should be wiped on open")
+  T.assert_true(vim.api.nvim_buf_is_valid(view_buf), "csvsql viewer buffer should be active")
+
+  -- Customize query and toggle to raw mode: csvsql buffer should be replaced by raw buffer
+  session.query = "SELECT id FROM data"
+  session:toggle_raw()
+  T.assert_eq(vim.api.nvim_buf_is_valid(view_buf), false, "csvsql buffer should be wiped when switching to raw")
+  local cur_raw = vim.api.nvim_get_current_buf()
+  T.assert_true(vim.b[cur_raw].csvsql_raw_mode == true, "current buffer should be raw CSV")
+
+  -- Toggle back to csvsql reader: raw buffer replaced by reader with saved query restored
+  local session2 = view.open(tmp, cur_raw)
+  T.assert_eq(vim.api.nvim_buf_is_valid(cur_raw), false, "unmodified raw buffer should be wiped when switching back")
+  T.assert_eq(session2.query, "SELECT id FROM data", "saved SQL query should be restored")
+
+  session2:close()
+  vim.fn.delete(tmp)
+end)
+
 T.finish()
