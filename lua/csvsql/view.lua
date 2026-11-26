@@ -73,7 +73,7 @@ local function render_buffer(session)
     table.insert(
       banner_lines,
       string.format(
-        " csvsql │ %s │ [%s] │ [%s] │ [%s] │ Updated: %s",
+        "csvsql │ %s │ [%s] │ [%s] │ [%s] │ Updated: %s",
         short_file,
         watch_label,
         trunc_label,
@@ -81,12 +81,12 @@ local function render_buffer(session)
         updated
       )
     )
-    table.insert(banner_lines, string.format(" SQL    │ %s", single_line_sql))
+    table.insert(banner_lines, string.format("SQL    │ %s", single_line_sql))
     header_lines = 2
 
     if session.last_error then
       local first_err = vim.split(session.last_error, "\n", { plain = true })[1] or session.last_error
-      table.insert(banner_lines, string.format(" ERROR  │ %s", first_err))
+      table.insert(banner_lines, string.format("ERROR  │ %s", first_err))
       error_line_idx = header_lines
       header_lines = header_lines + 1
     end
@@ -206,6 +206,47 @@ local function setup_keymaps(session)
   end
 end
 
+---@type table<integer, table<string, any>>
+local saved_win_opts = {}
+
+---@param win integer
+---@param wrap boolean
+local function configure_view_win(win, wrap)
+  if not saved_win_opts[win] then
+    saved_win_opts[win] = {
+      wrap = vim.wo[win].wrap,
+      number = vim.wo[win].number,
+      relativenumber = vim.wo[win].relativenumber,
+      signcolumn = vim.wo[win].signcolumn,
+      foldcolumn = vim.wo[win].foldcolumn,
+      statuscolumn = vim.wo[win].statuscolumn,
+    }
+  end
+  vim.wo[win].wrap = wrap
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+  vim.wo[win].signcolumn = "no"
+  vim.wo[win].foldcolumn = "0"
+  vim.wo[win].statuscolumn = ""
+end
+
+---@param win integer
+local function restore_view_win(win)
+  local prev = saved_win_opts[win]
+  if not prev then
+    return
+  end
+  saved_win_opts[win] = nil
+  if not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+  for k, v in pairs(prev) do
+    pcall(function()
+      vim.wo[win][k] = v
+    end)
+  end
+end
+
 ---@param filepath string
 ---@param raw_buf? integer
 ---@return CsvSqlSession
@@ -220,7 +261,7 @@ function M.open(filepath, raw_buf)
     end
     local win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(win, existing.view_buf)
-    vim.wo[win].wrap = existing.wrap
+    configure_view_win(win, existing.wrap)
     existing:refresh()
     return existing
   end
@@ -456,8 +497,23 @@ function M.open(filepath, raw_buf)
 
   vim.api.nvim_create_autocmd({ "WinScrolled", "CursorMoved", "WinResized", "BufWinEnter" }, {
     buffer = buf,
-    callback = function()
+    callback = function(ev)
+      if ev.event == "BufWinEnter" then
+        configure_view_win(vim.api.nvim_get_current_win(), session.wrap)
+      end
       sticky.update(session)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("BufWinLeave", {
+    buffer = buf,
+    callback = function()
+      local leave_win = vim.api.nvim_get_current_win()
+      vim.schedule(function()
+        if vim.api.nvim_win_is_valid(leave_win) and vim.api.nvim_win_get_buf(leave_win) ~= buf then
+          restore_view_win(leave_win)
+        end
+      end)
     end,
   })
 
@@ -481,9 +537,7 @@ function M.open(filepath, raw_buf)
 
   local win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(win, buf)
-  vim.wo[win].wrap = session.wrap
-  vim.wo[win].number = false
-  vim.wo[win].relativenumber = false
+  configure_view_win(win, session.wrap)
 
   render_buffer(session)
   session:refresh()

@@ -105,6 +105,8 @@ local function open_or_update_float(existing_win, buf, parent_win, row, width, h
   vim.wo[win].number = false
   vim.wo[win].relativenumber = false
   vim.wo[win].signcolumn = "no"
+  vim.wo[win].foldcolumn = "0"
+  vim.wo[win].statuscolumn = ""
   return win
 end
 
