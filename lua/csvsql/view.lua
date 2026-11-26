@@ -439,29 +439,24 @@ function M.open(filepath, raw_buf)
     local raw_buf = self.raw_buf
     local wins = vim.api.nvim_buf_is_valid(view_buf) and vim.fn.win_findbuf(view_buf) or {}
 
-    -- Find an existing listed buffer to switch to (excluding csvsql & unmodified raw CSV buffer)
+    -- Find an existing listed buffer to switch to (including other csvsql buffers)
+    local function is_fallback(b)
+      return b ~= view_buf
+        and b ~= raw_buf
+        and vim.api.nvim_buf_is_valid(b)
+        and vim.bo[b].buflisted
+        and (vim.bo[b].buftype == "" or vim.bo[b].filetype == "csvsql")
+    end
+
     local fallback = nil
     local alt = vim.fn.bufnr("#")
-    if
-      alt > 0
-      and alt ~= view_buf
-      and alt ~= raw_buf
-      and vim.api.nvim_buf_is_valid(alt)
-      and vim.bo[alt].buflisted
-      and vim.bo[alt].buftype == ""
-    then
+    if alt > 0 and is_fallback(alt) then
       fallback = alt
     end
 
     if not fallback then
       for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        if
-          b ~= view_buf
-          and b ~= raw_buf
-          and vim.api.nvim_buf_is_valid(b)
-          and vim.bo[b].buflisted
-          and vim.bo[b].buftype == ""
-        then
+        if is_fallback(b) then
           fallback = b
           break
         end
