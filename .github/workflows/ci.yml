@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Neovim (stable)
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Print Neovim version
+        shell: bash
+        run: nvim --version | head -n 3
+
+      - name: Run unit tests
+        shell: bash
+        run: nvim --headless -u tests/minimal_init.lua -l tests/duckdb_spec.lua
+
+      - name: Verify DuckDB auto-installer
+        shell: bash
+        run: |
+          nvim --headless -u tests/minimal_init.lua -c "lua local ok, msg = require('csvsql').install(); io.write(msg .. '\n'); if not ok then vim.cmd('cquit 1') end" -c "qa!"
+
+      - name: Run live integration tests
+        shell: bash
+        run: nvim --headless -u tests/minimal_init.lua -l tests/integration_spec.lua
+
+      - name: Validate Vimdoc help tags
+        shell: bash
+        run: nvim --headless -u NONE -c "helptags doc" -c "qa!"

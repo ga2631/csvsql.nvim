@@ -1,0 +1,110 @@
+*csvsql.txt*  Read-only, live-updating CSV/TSV SQL table viewer for Neovim
+
+==============================================================================
+CONTENTS                                                     *csvsql-contents*
+
+    1. Introduction .................................... |csvsql-intro|
+    2. Requirements .................................... |csvsql-requirements|
+    3. Commands ........................................ |csvsql-commands|
+    4. Keymaps ......................................... |csvsql-keymaps|
+    5. Configuration ................................... |csvsql-config|
+
+==============================================================================
+1. INTRODUCTION                                                 *csvsql-intro*
+
+csvsql.nvim renders CSV and TSV files as read-only tables in Neovim using
+DuckDB, supports full SQL querying against the virtual view `data`, and
+automatically refreshes in real time when the file changes on disk.
+
+==============================================================================
+2. REQUIREMENTS                                          *csvsql-requirements*
+
+- Neovim >= 0.10
+- DuckDB CLI (auto-installed via `:CsvSqlInstall` or `build = ":CsvSqlInstall"`):
+  - Automatic (macOS / Linux / Windows): `:CsvSqlInstall`
+  - Manual macOS:   `brew install duckdb`
+  - Manual Linux:   `curl https://install.duckdb.org | sh`
+  - Manual Windows: `winget install DuckDB.cli` (or `scoop install duckdb`)
+
+Run `:checkhealth csvsql` to verify your installation.
+
+==============================================================================
+3. COMMANDS                                                  *csvsql-commands*
+
+                                                                     *:CsvSql*
+:CsvSql [query]         Run SQL query against `data`. If omitted, toggles
+                        the multi-line SQL scratch split.
+
+                                                                 *:CsvSqlOpen*
+:CsvSqlOpen [file]      Open [file] (or current buffer's file) in csvsql view.
+
+                                                               *:CsvSqlEditor*
+:CsvSqlEditor           Toggle the multi-line SQL scratch split (`ft=sql`).
+
+                                                               *:CsvSqlToggle*
+:CsvSqlToggle           Toggle between rendered table view and raw CSV buffer.
+
+                                                                *:CsvSqlReset*
+:CsvSqlReset            Reset query to `SELECT * FROM data LIMIT ...`.
+
+                                                              *:CsvSqlRefresh*
+:CsvSqlRefresh          Manually re-run the active query and refresh view.
+
+                                                                *:CsvSqlWatch*
+:CsvSqlWatch            Pause or resume real-time file watching.
+
+                                                            *:CsvSqlSummarize*
+:CsvSqlSummarize        Run `SUMMARIZE data` for column statistics.
+
+                                                              *:CsvSqlInstall*
+:CsvSqlInstall[!]       Download and install the official DuckDB CLI binary
+                        for your OS/architecture into Neovim's data directory.
+                        Use `!` to force reinstall or upgrade.
+
+==============================================================================
+4. KEYMAPS                                                    *csvsql-keymaps*
+
+Table view buffer (Normal mode):
+  gs    Toggle SQL scratch editor split
+  gq    Open quick SQL prompt
+  gS    Run `SUMMARIZE data`
+  gR    Reset query to default
+  r     Refresh table
+  gr    Toggle raw CSV view
+  gw    Toggle live file watching
+
+SQL scratch editor split:
+  <CR>  (Normal) Execute SQL query
+  <C-s> (Normal/Insert) Execute SQL query
+  :w    Execute SQL query
+  q     (Normal) Close SQL editor split
+
+==============================================================================
+5. CONFIGURATION                                               *csvsql-config*
+
+Call `require("csvsql").setup(opts)` with any of the following defaults: >lua
+
+  require("csvsql").setup({
+    auto_enable = true,
+    filetypes = { "csv", "tsv" },
+    duckdb_bin = "duckdb",
+    table_name = "data",
+    default_limit = 1000,
+    output_mode = "box",
+    debounce_ms = 200,
+    live_watch = true,
+    editor_height = 8,
+    show_header = true,
+    keymaps = {
+      editor = "gs",
+      prompt = "gq",
+      reset = "gR",
+      refresh = "r",
+      toggle_raw = "gr",
+      toggle_watch = "gw",
+      summarize = "gS",
+    },
+  })
+<
+
+vim:tw=78:ts=8:ft=help:norl:
