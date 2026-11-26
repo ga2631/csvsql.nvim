@@ -14,9 +14,36 @@ M.sessions_by_buf = {}
 M.saved_state = {}
 
 local ns = vim.api.nvim_create_namespace("csvsql_highlights")
+local zebra_ns = vim.api.nvim_create_namespace("csvsql_zebra")
+
+---@param rgb integer
+---@param delta integer
+---@return string
+local function shift_rgb(rgb, delta)
+  local r = math.min(255, math.max(0, math.floor(rgb / 65536) % 256 + delta))
+  local g = math.min(255, math.max(0, math.floor(rgb / 256) % 256 + delta))
+  local b = math.min(255, math.max(0, (rgb % 256) + delta))
+  return string.format("#%02x%02x%02x", r, g, b)
+end
 
 local function ensure_highlights()
-  vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, link = "ColorColumn" })
+  local existing_even = vim.api.nvim_get_hl(0, { name = "CsvSqlRowEven", link = false })
+  if vim.tbl_isempty(existing_even) then
+    local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+    if normal.bg then
+      local r = math.floor(normal.bg / 65536) % 256
+      local g = math.floor(normal.bg / 256) % 256
+      local b = normal.bg % 256
+      local lum = 0.299 * r + 0.587 * g + 0.114 * b
+      local bg = shift_rgb(normal.bg, lum < 128 and 18 or -14)
+      vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = bg })
+    elseif vim.o.background == "light" then
+      vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = "#ebedf0", ctermbg = 254 })
+    else
+      -- Visible subtle surface tint for transparent dark terminals
+      vim.api.nvim_set_hl(0, "CsvSqlRowEven", { default = true, bg = "#1c2128", ctermbg = 235 })
+    end
+  end
   vim.api.nvim_set_hl(0, "CsvSqlRowOdd", { default = true, link = "Normal" })
 end
 
@@ -31,6 +58,58 @@ local function is_bottom_border(line, output_mode)
     return vim.startswith(line, "+")
   end
   return false
+end
+
+---@param session CsvSqlSession
+---@param row_idx integer 0-based line index
+local function add_even_mark(session, row_idx)
+  local buf = session.view_buf
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  session._zebra_marks[row_idx] = vim.api.nvim_buf_set_extmark(buf, zebra_ns, row_idx, 0, {
+    line_hl_group = "CsvSqlRowEven",
+    priority = 10,
+  })
+end
+
+---@param session CsvSqlSession
+local function sync_zebra_cursor(session)
+  if not config.options.zebra_striping or not session._zebra_even_set then
+    return
+  end
+  local buf = session.view_buf
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+
+  local cur_win = vim.api.nvim_get_current_win()
+  local cur_row = nil
+  if vim.api.nvim_win_is_valid(cur_win) and vim.api.nvim_win_get_buf(cur_win) == buf then
+    cur_row = vim.api.nvim_win_get_cursor(cur_win)[1] - 1
+  end
+
+  local prev_hidden = session._zebra_hidden_row
+  if prev_hidden == cur_row then
+    return
+  end
+
+  -- Restore stripe on previously hidden even row
+  if prev_hidden ~= nil and session._zebra_even_set[prev_hidden] and not session._zebra_marks[prev_hidden] then
+    add_even_mark(session, prev_hidden)
+  end
+
+  -- Temporarily clear stripe on current cursor row so CursorLine stays 100% visible
+  if cur_row ~= nil and session._zebra_even_set[cur_row] then
+    local id = session._zebra_marks[cur_row]
+    if id then
+      pcall(vim.api.nvim_buf_del_extmark, buf, zebra_ns, id)
+      session._zebra_marks[cur_row] = nil
+    end
+    session._zebra_hidden_row = cur_row
+  else
+    session._zebra_hidden_row = nil
+  end
 end
 
 ---@class CsvSqlSession
@@ -147,7 +226,12 @@ local function render_buffer(session)
     vim.api.nvim_buf_add_highlight(buf, ns, "ErrorMsg", error_line_idx, 0, -1)
   end
 
-  -- Apply alternating row colors (zebra striping) to table data rows
+  -- Apply alternating row colors (zebra striping) to even table data rows
+  vim.api.nvim_buf_clear_namespace(buf, zebra_ns, 0, -1)
+  session._zebra_even_set = {}
+  session._zebra_marks = {}
+  session._zebra_hidden_row = nil
+
   if config.options.zebra_striping and #session._table_header_lines > 0 then
     local data_start = #banner_lines + #session._table_header_lines
     local data_end = #output - 1
@@ -156,11 +240,10 @@ local function render_buffer(session)
     end
     for idx = data_start, data_end do
       local row_num = idx - data_start
-      local hl = (row_num % 2 == 1) and "CsvSqlRowEven" or "CsvSqlRowOdd"
-      vim.api.nvim_buf_set_extmark(buf, ns, idx, 0, {
-        line_hl_group = hl,
-        priority = 50,
-      })
+      if row_num % 2 == 1 then
+        session._zebra_even_set[idx] = true
+        add_even_mark(session, idx)
+      end
     end
   end
 
@@ -177,6 +260,7 @@ local function render_buffer(session)
     end
   end
 
+  sync_zebra_cursor(session)
   sticky.update(session)
 end
 
@@ -568,6 +652,7 @@ function M.open(filepath, raw_buf)
       if ev.event == "BufWinEnter" then
         configure_view_win(vim.api.nvim_get_current_win(), session.wrap)
       end
+      sync_zebra_cursor(session)
       sticky.update(session)
     end,
   })

@@ -313,10 +313,10 @@ T.test("single-buffer mode replaces raw buffer with reader and vice versa", func
   vim.fn.delete(tmp)
 end)
 
-T.test("zebra striping applies alternating CsvSqlRowOdd/CsvSqlRowEven extmarks on data rows", function()
+T.test("zebra striping highlights even data rows and yields to CursorLine", function()
   local view = require("csvsql.view")
   local tmp = vim.fn.tempname() .. ".csv"
-  vim.fn.writefile({ "id,name", "1,a", "2,b", "3,c" }, tmp)
+  vim.fn.writefile({ "id,name", "1,a", "2,b", "3,c", "4,d" }, tmp)
 
   local session = view.open(tmp)
   session.last_lines = {
@@ -326,21 +326,30 @@ T.test("zebra striping applies alternating CsvSqlRowOdd/CsvSqlRowEven extmarks o
     "│ 1  │ a    │",
     "│ 2  │ b    │",
     "│ 3  │ c    │",
+    "│ 4  │ d    │",
     "└────┴──────┘",
   }
-  -- Trigger render via toggle_watch twice (no duckdb dependency)
+  -- Keep cursor on line 1 (banner) so all even data rows have stripes
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
   session:toggle_watch()
 
-  local ns = vim.api.nvim_get_namespaces().csvsql_highlights
-  local marks = vim.api.nvim_buf_get_extmarks(session.view_buf, ns, 0, -1, { details = true })
-  local row_hls = {}
-  for _, m in ipairs(marks) do
-    if m[4] and m[4].line_hl_group then
-      table.insert(row_hls, m[4].line_hl_group)
-    end
-  end
+  local zns = vim.api.nvim_get_namespaces().csvsql_zebra
+  local marks = vim.api.nvim_buf_get_extmarks(session.view_buf, zns, 0, -1, { details = true })
+  T.assert_eq(#marks, 2, "2 even data rows (row 2 and row 4) should be striped")
+  local first_even_row = marks[1][2]
+  T.assert_eq(marks[1][4].line_hl_group, "CsvSqlRowEven")
 
-  T.assert_eq(row_hls, { "CsvSqlRowOdd", "CsvSqlRowEven", "CsvSqlRowOdd" })
+  -- Move cursor onto the first even row: its zebra extmark should yield so CursorLine stays visible
+  vim.api.nvim_win_set_cursor(0, { first_even_row + 1, 0 })
+  vim.api.nvim_exec_autocmds("CursorMoved", { buffer = session.view_buf })
+  local marks_on_cursor = vim.api.nvim_buf_get_extmarks(session.view_buf, zns, 0, -1, { details = true })
+  T.assert_eq(#marks_on_cursor, 1, "zebra stripe on cursor row should yield to CursorLine")
+
+  -- Move cursor away: stripe should be restored
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  vim.api.nvim_exec_autocmds("CursorMoved", { buffer = session.view_buf })
+  local marks_restored = vim.api.nvim_buf_get_extmarks(session.view_buf, zns, 0, -1, { details = true })
+  T.assert_eq(#marks_restored, 2, "zebra stripe should restore after cursor leaves even row")
 
   session:close()
   vim.fn.delete(tmp)
